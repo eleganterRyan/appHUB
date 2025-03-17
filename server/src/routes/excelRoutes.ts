@@ -1,6 +1,6 @@
 import express from 'express';
 import multer, { FileFilterCallback } from 'multer';
-import { mergeExcelFiles, downloadMergedFile } from '../controllers/excelController';
+import { mergeExcelFiles, downloadMergedFile, splitExcelFile, previewExcelColumns } from '../controllers/excelController';
 import { Request, Response, NextFunction } from 'express';
 
 const router = express.Router();
@@ -63,7 +63,50 @@ router.post('/merge', (req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-// 下载合并后的文件
+// 拆分Excel文件
+router.post('/split', (req: Request, res: Response, next: NextFunction) => {
+  console.log('收到拆分Excel文件请求');
+  console.log('Content-Type:', req.headers['content-type']);
+  
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('文件上传错误:', err);
+      return res.status(400).json({ message: `文件上传错误: ${err.message}` });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ message: '没有上传文件' });
+    }
+    
+    console.log('文件上传成功:', req.file.originalname);
+    
+    // 继续处理
+    splitExcelFile(req as any, res);
+  });
+});
+
+// 预览Excel文件列
+router.post('/preview-columns', (req: Request, res: Response, next: NextFunction) => {
+  console.log('收到预览Excel列请求');
+  
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('文件上传错误:', err);
+      return res.status(400).json({ message: `文件上传错误: ${err.message}` });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ message: '没有上传文件' });
+    }
+    
+    console.log('文件上传成功:', req.file.originalname);
+    
+    // 继续处理
+    previewExcelColumns(req as any, res);
+  });
+});
+
+// 下载合并或拆分后的文件
 router.get('/download/:fileName', downloadMergedFile);
 
 export default router;

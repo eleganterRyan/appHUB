@@ -196,7 +196,28 @@ def merge_excel_files(file_paths, output_path, include_headers=True):
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
         # 保存为xlsx格式
-        merged_df.to_excel(output_path, index=False, engine='openpyxl')
+        if include_headers:
+            # 如果包含表头，使用openpyxl直接写入数据，跳过列名行
+            import openpyxl
+            
+            # 将DataFrame转换为值列表
+            values = merged_df.values.tolist()
+            
+            # 创建新的工作簿和工作表
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            
+            # 直接写入所有数据行，不包含列名
+            for row_idx, row_data in enumerate(values, 1):  # 从第1行开始
+                for col_idx, cell_value in enumerate(row_data, 1):  # 从第1列开始
+                    ws.cell(row=row_idx, column=col_idx, value=cell_value)
+            
+            # 保存工作簿
+            wb.save(output_path)
+        else:
+            # 如果不包含表头，使用pandas的to_excel方法
+            merged_df.to_excel(output_path, index=False, engine='openpyxl')
+            
         print(f"Saved merged file to: {output_path}", file=sys.stderr)
         
         return True
