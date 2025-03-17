@@ -52,15 +52,15 @@ export default function Home() {
           </Link>
 
           {/* 计算器应用 */}
-          <Link href="/apps/calculator" className="card hover:shadow-lg transition-shadow">
+          <a href="https://mathda.com/calculator/zh-CN" target="_blank" rel="noopener noreferrer" className="card hover:shadow-lg transition-shadow">
             <div className="h-12 w-12 bg-primary-100 rounded-md flex items-center justify-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
             </div>
             <h3 className="text-lg font-medium text-gray-900">计算器</h3>
-            <p className="mt-2 text-sm text-gray-500">简单易用的计算器工具</p>
-          </Link>
+            <p className="mt-2 text-sm text-gray-500">简单易用的计算器工具 (MathDa)</p>
+          </a>
 
           {/* 天气应用 */}
           <Link href="/apps/weather" className="card hover:shadow-lg transition-shadow">
