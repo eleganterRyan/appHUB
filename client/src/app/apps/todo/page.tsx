@@ -55,6 +55,21 @@ export default function TodoApp() {
   const [useCustomDeadline, setUseCustomDeadline] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState<string>('');
 
+  // 页面自动刷新 - 每4小时刷新一次
+  useEffect(() => {
+    // 4小时的毫秒数
+    const fourHoursInMs = 4 * 60 * 60 * 1000;
+    
+    // 设置定时器自动刷新
+    const refreshInterval = setInterval(() => {
+      console.log('执行4小时定时刷新');
+      window.location.reload();
+    }, fourHoursInMs);
+    
+    // 清理函数
+    return () => clearInterval(refreshInterval);
+  }, []);
+
   // 从本地存储加载待办事项并清理过期项目
   useEffect(() => {
     const loadTodos = () => {
@@ -680,20 +695,20 @@ export default function TodoApp() {
           {/* 添加待办事项 */}
           <div className="mb-6">
             <div className="flex mb-3">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && addTodo()}
-                placeholder="添加新的待办事项..."
+              placeholder="添加新的待办事项..."
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900"
-              />
-              <button
-                onClick={addTodo}
-                className="btn btn-primary rounded-l-none"
-              >
-                添加
-              </button>
+            />
+            <button
+              onClick={addTodo}
+              className="btn btn-primary rounded-l-none"
+            >
+              添加
+            </button>
             </div>
             
             <div className="flex items-start mb-3">
@@ -781,11 +796,11 @@ export default function TodoApp() {
                     />
                     <div className="ml-3 flex-1">
                       <div className="flex items-center">
-                        <span 
+                    <span 
                           className={`${todo.completed ? 'line-through text-gray-400' : 'text-gray-900'} flex-grow`}
-                        >
-                          {todo.text}
-                        </span>
+                    >
+                      {todo.text}
+                    </span>
                         
                         {/* 将过期信息显示在同一行 */}
                         <span className="text-xs whitespace-nowrap ml-2">
@@ -812,12 +827,12 @@ export default function TodoApp() {
                         )}
                         
                         {/* 将删除按钮放在同一行 */}
-                        <button
-                          onClick={() => deleteTodo(todo.id)}
+                  <button
+                    onClick={() => deleteTodo(todo.id)}
                           className="text-red-300 hover:text-red-700 opacity-65 text-xs ml-3"
-                        >
-                          删除
-                        </button>
+                  >
+                    删除
+                  </button>
                       </div>
                     </div>
                   </div>

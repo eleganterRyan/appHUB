@@ -83,6 +83,17 @@ export default function Home() {
             <h3 className="text-lg font-medium text-gray-900">Excel处理工具</h3>
             <p className="mt-2 text-sm text-gray-500">合并或拆分Excel文件，提高数据处理效率</p>
           </Link>
+          
+          {/* 会议时间确定应用 */}
+          <Link href="/apps/meeting-scheduler" className="card hover:shadow-lg transition-shadow">
+            <div className="h-12 w-12 bg-primary-100 rounded-md flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900">会议时间确定</h3>
+            <p className="mt-2 text-sm text-gray-500">多人协作选择共同可用的会议时间</p>
+          </Link>
         </div>
       </div>
 
