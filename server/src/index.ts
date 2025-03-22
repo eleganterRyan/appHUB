@@ -1,3 +1,7 @@
+/**
+ * 服务器入口文件
+ */
+
 import 'reflect-metadata';
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
@@ -60,4 +64,5 @@ const startServer = async () => {
   }
 };
 
+console.log('服务器启动中...');
 startServer(); 
