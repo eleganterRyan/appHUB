@@ -279,8 +279,16 @@ export default function TodoApp() {
               border-radius: 9999px;
               font-size: 14px;
               font-weight: 500;
-              background-color: ${daysDiff <= 1 ? '#fecaca' : '#fed7aa'};
-              color: ${daysDiff <= 1 ? '#991b1b' : '#9a3412'};
+              background-color: ${
+                daysDiff === 1 ? '#fecaca' : 
+                daysDiff === 2 ? '#fee2e2' : 
+                '#fed7aa'
+              };
+              color: ${
+                daysDiff === 1 ? '#991b1b' : 
+                daysDiff === 2 ? '#b91c1c' : 
+                '#9a3412'
+              };
             }
             .task-info {
               margin-bottom: 20px;
@@ -290,7 +298,11 @@ export default function TodoApp() {
             }
             .deadline-time {
               font-weight: bold;
-              color: ${daysDiff <= 1 ? '#dc2626' : '#ea580c'};
+              color: ${
+                daysDiff === 1 ? '#dc2626' : 
+                daysDiff === 2 ? '#ef4444' : 
+                '#ea580c'
+              };
             }
             .actions {
               text-align: center;
@@ -332,7 +344,11 @@ export default function TodoApp() {
           <div class="task-card">
             <div class="task-header">
               <div class="task-title">${todo.text}</div>
-              <div class="urgency-badge">${daysDiff <= 1 ? '明天截止' : '3天后截止'}</div>
+              <div class="urgency-badge">${
+                daysDiff === 1 ? '明天截止' : 
+                daysDiff === 2 ? '2天后截止' : 
+                '3天后截止'
+              }</div>
             </div>
             
             <div class="task-info">
@@ -377,9 +393,9 @@ export default function TodoApp() {
         const timeDiff = deadline - now;
         const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
         
-        // 只有在距离DDL还有3天或1天时，且之前没有发送过通知的任务才弹出提醒
+        // 在距离DDL还有3天、2天或1天时，且之前没有发送过通知的任务才弹出提醒
         const notificationKey = `${todo.id}_${daysDiff}`;
-        if ((daysDiff === 3 || daysDiff === 1) && !sentNotifications.has(notificationKey)) {
+        if ((daysDiff === 3 || daysDiff === 2 || daysDiff === 1) && !sentNotifications.has(notificationKey)) {
           sentNotifications.add(notificationKey); // 标记为已发送
           
           // 创建HTML内容
@@ -571,7 +587,7 @@ export default function TodoApp() {
         
         <div class="footer">
           <p>此提醒由 AppHUB 待办事项应用自动生成</p>
-          <p style="color: #3b82f6; margin-top: 10px;">这是一个测试提醒，真实提醒将在任务距离截止日期还有3天或1天时自动弹出</p>
+          <p style="color: #3b82f6; margin-top: 10px;">这是一个测试提醒，真实提醒将在任务距离截止日期还有3天、2天或1天时自动弹出</p>
         </div>
       </body>
       </html>
