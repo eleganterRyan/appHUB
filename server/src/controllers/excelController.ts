@@ -19,6 +19,10 @@ if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
 }
 
+// 指定backend虚拟环境的Python解释器路径
+const pythonInterpreter = path.resolve(__dirname, '../../venv/bin/python');
+console.log(`使用Python解释器: ${pythonInterpreter}`);
+
 // 扩展Request类型
 interface RequestWithFiles extends Request {
   files: Express.Multer.File[];
@@ -95,7 +99,7 @@ export const mergeExcelFiles = async (req: RequestWithFiles, res: Response) => {
     const options = {
       mode: 'text' as const, // 使用文本模式而不是JSON模式
       pythonOptions: ['-u'], // 不缓冲输出
-      pythonPath: 'python', // 使用系统默认的Python解释器
+      pythonPath: pythonInterpreter, // 使用server虚拟环境的Python解释器
       args: [JSON.stringify(jsonArgs)],
       stderrParser: (line: string) => {
         // 使用简洁的日志格式

@@ -10,7 +10,7 @@ const storage = multer.memoryStorage(); // 使用内存存储，不写入磁盘
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 限制文件大小为10MB
+    fileSize: 100 * 1024 * 1024, // 限制文件大小为100MB
     files: 100 // 最多处理100个文件
   },
   fileFilter: (req: Request, file: Express.Multer.File, callback: FileFilterCallback) => {

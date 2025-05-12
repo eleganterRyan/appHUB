@@ -1,5 +1,6 @@
 import '@/styles/globals.css'
 import type { Metadata } from 'next'
+import DifyBot from '@/components/DifyBot'
 // 移除 Google 字体导入
 // import { Inter } from 'next/font/google'
 
@@ -7,8 +8,8 @@ import type { Metadata } from 'next'
 // const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'AppHUB - 您的应用中心',
-  description: '一站式应用中心，包含多种实用小工具',
+  title: 'AppHUB',
+  description: '您的一站式应用中心',
 }
 
 export default function RootLayout({
@@ -17,9 +18,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="zh-CN">
-      {/* 使用系统字体栈替代 Inter 字体 */}
+    <html lang="zh">
+      <head>
+        {/* 这里已删除聊天机器人配置 */}
+      </head>
       <body className="font-sans">
+        <DifyBot />
         <main className="min-h-screen">
           {children}
         </main>

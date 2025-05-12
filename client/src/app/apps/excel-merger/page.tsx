@@ -1,10 +1,19 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 
-// 定义API基础URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+// 使用动态API基础URL
+const getApiBaseUrl = () => {
+  // 如果在浏览器环境中，使用当前页面的主机名
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:5001/api`;
+  }
+  // 默认值，用于服务器端渲染
+  return 'http://localhost:5001/api';
+};
 
 interface MergeOptions {
   includeHeaders: boolean
@@ -70,7 +79,7 @@ export default function ExcelMergerApp() {
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await fetch(`${API_BASE_URL}/excel/preview-columns`, {
+      const response = await fetch(`${getApiBaseUrl()}/excel/preview-columns`, {
         method: 'POST',
         body: formData,
       });
@@ -115,7 +124,7 @@ export default function ExcelMergerApp() {
       const includeHeadersValue = mergeOptions.includeHeaders ? 'true' : 'false';
       formData.append('includeHeaders', includeHeadersValue);
       
-      const apiUrl = `${API_BASE_URL}/excel/merge`;
+      const apiUrl = `${getApiBaseUrl()}/excel/merge`;
       console.log('正在发送请求到:', apiUrl);
       console.log('文件数量:', selectedFiles.length);
       console.log('包含表头选项:', mergeOptions.includeHeaders);
@@ -189,7 +198,7 @@ export default function ExcelMergerApp() {
       formData.append('file', selectedFiles[0]);
       formData.append('columnIndex', splitOptions.columnIndex.toString());
       
-      const apiUrl = `${API_BASE_URL}/excel/split`;
+      const apiUrl = `${getApiBaseUrl()}/excel/split`;
       console.log('正在发送请求到:', apiUrl);
       console.log('文件名:', selectedFiles[0].name);
       console.log('拆分列索引:', splitOptions.columnIndex);
@@ -424,7 +433,7 @@ export default function ExcelMergerApp() {
               <p className="font-medium">{result.message}</p>
               {result.success && mode === 'merge' && result.fileName && (
                 <a 
-                  href={`${API_BASE_URL}/excel/download/${result.fileName}`}
+                  href={`${getApiBaseUrl()}/excel/download/${result.fileName}`}
                   download
                   className="inline-block mt-2 text-primary-600 hover:text-primary-800 underline"
                 >
@@ -436,7 +445,7 @@ export default function ExcelMergerApp() {
                   <p className="font-medium mb-1">下载拆分后的文件:</p>
                   {result.zipFileName && (
                     <a 
-                      href={`${API_BASE_URL}/excel/download/${result.zipFileName}`}
+                      href={`${getApiBaseUrl()}/excel/download/${result.zipFileName}`}
                       download
                       className="block mb-3 text-lg font-medium text-primary-600 hover:text-primary-800 underline"
                     >
@@ -447,7 +456,7 @@ export default function ExcelMergerApp() {
                     {result.fileNames.map((fileName, index) => (
                       <a 
                         key={index}
-                        href={`${API_BASE_URL}/excel/download/${fileName}`}
+                        href={`${getApiBaseUrl()}/excel/download/${fileName}`}
                         download
                         className="block mt-1 text-primary-600 hover:text-primary-800 underline"
                       >

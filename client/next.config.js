@@ -4,7 +4,7 @@ const nextConfig = {
   swcMinify: true,
   async rewrites() {
     // 获取环境变量中的API服务器地址，默认为localhost:5000
-    const apiUrl = process.env.API_SERVER_URL || 'http://localhost:5000';
+    const apiUrl = process.env.API_SERVER_URL || 'http://localhost:5001';
     
     return [
       {

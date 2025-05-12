@@ -22,13 +22,14 @@ import { logger } from './middleware/logger';
 dotenv.config();
 
 const app: Express = express();
-const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+const port = process.env.PORT ? parseInt(process.env.PORT) : 5001;
 
-// CORS配置 - 允许所有来源
+// CORS配置 - 允许特定来源
 const corsOptions = {
-  origin: '*',
+  origin: '*', // 允许所有来源访问，适合开发环境
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true
 };
 
 // 中间件
