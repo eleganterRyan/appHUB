@@ -14,6 +14,7 @@ import { AppDataSource } from './config/database';
 import todoRoutes from './routes/todoRoutes';
 import weatherRoutes from './routes/weatherRoutes';
 import excelRoutes from './routes/excelRoutes';
+import degreeWorkflowRoutes from './routes/degreeWorkflowRoutes';
 
 // 导入中间件
 import { logger } from './middleware/logger';
@@ -42,6 +43,7 @@ app.use(logger);
 app.use('/api/todos', todoRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/excel', excelRoutes);
+app.use('/api/degree-workflow', degreeWorkflowRoutes);
 
 // 根路由
 app.get('/', (req: Request, res: Response) => {
