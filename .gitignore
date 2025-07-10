@@ -37,3 +37,7 @@ next-env.d.ts
 # 上传和临时文件目录
 server/uploads/
 server/temp/ 
+
+# Python 虚拟环境
+venv/
+server/venv/

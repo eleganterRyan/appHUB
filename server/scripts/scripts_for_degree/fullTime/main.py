@@ -2,18 +2,18 @@ import pandas as pd
 import sys
 import os
 import json
-
+    
 # 学术型与专业型招生专业
 ACADEMIC_MAJORS = [
-    "仪器科学与技术(080400)", "信息与通信工程(081000)", 
-    "控制科学与工程(081100)", "电子科学与技术(080900)",
-    "电气工程(080800)", "网络空间安全(083900)",
-    "计算机科学与技术(081200)", "集成电路科学与工程(140100)"
-]
+        "仪器科学与技术(080400)", "信息与通信工程(081000)", 
+        "控制科学与工程(081100)", "电子科学与技术(080900)",
+        "电气工程(080800)", "网络空间安全(083900)",
+        "计算机科学与技术(081200)", "集成电路科学与工程(140100)"
+    ]
 PROFESSIONAL_MAJORS = [
     "电气工程(085801)", "电子信息(085400)"
-]
-
+    ]
+    
 # 入口参数：excel文件路径、输出文件路径
 if len(sys.argv) < 3:
     print("用法: python main.py <excel文件路径> <输出文件路径>")
@@ -24,7 +24,7 @@ output_file = sys.argv[2]
 
 # 读取数据
 try:
-    df = pd.read_excel(input_file)
+    df = pd.read_excel(input_file, dtype={'工号': str})
 except Exception as e:
     print(f"读取Excel失败: {e}")
     sys.exit(1)
@@ -124,7 +124,6 @@ for (name, job_id), group in df.groupby(["姓名", "工号"]):
 # 输出结果
 result_df = pd.DataFrame(result_rows, columns=output_columns)
 result_df.to_excel(output_file, index=False)
-print(f"分析完成，结果已保存到: {output_file}")
 
 # 新增：输出统计信息，便于后端获取
 stats = {

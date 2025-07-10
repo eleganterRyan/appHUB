@@ -24,7 +24,7 @@ interface SplitOptions {
 }
 
 // 定义功能模式
-type Mode = 'merge' | 'split';
+type Mode = 'merge' | 'mergeBySheet' | 'split';
 
 export default function ExcelMergerApp() {
   // 添加模式状态
@@ -247,9 +247,54 @@ export default function ExcelMergerApp() {
       const file = e.target.files[0];
       setSelectedFiles([file]);
       setResult(null);
-      
       // 预览Excel列名
       await previewExcelColumns(file);
+    }
+  }
+
+  // 合并Excel文件（逐sheet）
+  const handleMergeBySheet = async () => {
+    if (selectedFiles.length === 0) {
+      setResult({
+        success: false,
+        message: '请先选择Excel文件'
+      });
+      return;
+    }
+    setIsProcessing(true);
+    setResult(null);
+    try {
+      const formData = new FormData();
+      selectedFiles.forEach(file => {
+        formData.append('files', file);
+      });
+      const apiUrl = `${getApiBaseUrl()}/excel/merge-by-sheet`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+        mode: 'cors',
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`服务器处理失败: ${response.status} ${errorText}`);
+      }
+      const data = await response.json();
+      setResult({
+        success: true,
+        message: `成功合并 ${selectedFiles.length} 个Excel文件的所有sheet`,
+        fileName: data.fileName
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      setSelectedFiles([]);
+    } catch (error) {
+      setResult({
+        success: false,
+        message: error instanceof Error ? error.message : '合并Excel文件（逐sheet）失败，请重试'
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -294,7 +339,17 @@ export default function ExcelMergerApp() {
                 : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            合并Excel文件
+            合并Excel文件（逐行）
+          </button>
+          <button
+            onClick={() => setMode('mergeBySheet')}
+            className={`py-2 px-4 font-medium text-sm focus:outline-none ${
+              mode === 'mergeBySheet'
+                ? 'border-b-2 border-primary-500 text-primary-600'
+                : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            合并Excel文件（逐sheet）
           </button>
           <button
             onClick={() => setMode('split')}
@@ -358,6 +413,39 @@ export default function ExcelMergerApp() {
                 className="btn btn-primary w-full"
               >
                 {isProcessing ? '处理中...' : '合并Excel文件'}
+              </button>
+            </div>
+          ) : mode === 'mergeBySheet' ? (
+            // 合并逐sheet功能界面
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">合并选项（逐sheet）</h3>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  选择Excel文件
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  multiple
+                  onChange={handleFileChange}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                />
+                {selectedFiles.length > 0 && (
+                  <div className="mt-2 text-sm text-gray-500">
+                    已选择 {selectedFiles.length} 个文件
+                  </div>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                选择多个Excel文件，所有文件的每个sheet都将合并到一个新Excel文件中。
+              </p>
+              <button
+                onClick={handleMergeBySheet}
+                disabled={isProcessing || selectedFiles.length === 0}
+                className="btn btn-primary w-full"
+              >
+                {isProcessing ? '处理中...' : '合并Excel文件（逐sheet）'}
               </button>
             </div>
           ) : (
@@ -438,6 +526,15 @@ export default function ExcelMergerApp() {
                   className="inline-block mt-2 text-primary-600 hover:text-primary-800 underline"
                 >
                   下载合并后的文件
+                </a>
+              )}
+              {result.success && mode === 'mergeBySheet' && result.fileName && (
+                <a
+                  href={`${getApiBaseUrl()}/excel/download/${result.fileName}`}
+                  download
+                  className="inline-block mt-2 text-primary-600 hover:text-primary-800 underline"
+                >
+                  下载合并后的文件（逐sheet）
                 </a>
               )}
               {result.success && mode === 'split' && result.fileNames && result.fileNames.length > 0 && (

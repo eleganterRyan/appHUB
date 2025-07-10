@@ -1,6 +1,6 @@
 import express from 'express';
 import multer, { FileFilterCallback } from 'multer';
-import { mergeExcelFiles, downloadMergedFile, splitExcelFile, previewExcelColumns } from '../controllers/excelController';
+import { mergeExcelFiles, downloadMergedFile, splitExcelFile, previewExcelColumns, mergeExcelFilesBySheet } from '../controllers/excelController';
 import { Request, Response, NextFunction } from 'express';
 
 const router = express.Router();
@@ -60,6 +60,19 @@ router.post('/merge', (req: Request, res: Response, next: NextFunction) => {
     
     // 继续处理
     mergeExcelFiles(req as any, res);
+  });
+});
+
+// 合并Excel文件（逐sheet）
+router.post('/merge-by-sheet', (req: Request, res: Response, next: NextFunction) => {
+  console.log('收到合并Excel文件（逐sheet）请求');
+  upload.array('files')(req, res, (err) => {
+    if (err) {
+      console.error('文件上传错误:', err);
+      return res.status(400).json({ message: `文件上传错误: ${err.message}` });
+    }
+    console.log('文件上传成功，文件数量:', (req.files as Express.Multer.File[])?.length || 0);
+    mergeExcelFilesBySheet(req as any, res);
   });
 });
 

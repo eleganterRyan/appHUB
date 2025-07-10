@@ -172,6 +172,91 @@ export const mergeExcelFiles = async (req: RequestWithFiles, res: Response) => {
   }
 };
 
+// 合并Excel文件（逐sheet）
+export const mergeExcelFilesBySheet = async (req: RequestWithFiles, res: Response) => {
+  try {
+    if (!req.files || !Array.isArray(req.files)) {
+      return res.status(400).json({ message: '没有上传文件' });
+    }
+    const files = req.files;
+    if (files.length === 0) {
+      return res.status(400).json({ message: '没有上传文件' });
+    }
+    // 保存上传的文件到临时目录
+    const tempFilePaths: string[] = [];
+    for (const file of files) {
+      const fileExt = path.extname(file.originalname).toLowerCase();
+      if (fileExt !== '.xls' && fileExt !== '.xlsx') continue;
+      const tempFilePath = path.join(tempDir, `${uuidv4()}${fileExt}`);
+      fs.writeFileSync(tempFilePath, file.buffer);
+      tempFilePaths.push(tempFilePath);
+    }
+    if (tempFilePaths.length === 0) {
+      return res.status(400).json({ message: '没有有效的Excel文件' });
+    }
+    // 生成输出文件路径
+    const outputFileName = `merged_by_sheet_${uuidv4()}.xlsx`;
+    const outputFilePath = path.join(uploadDir, outputFileName);
+    // Python脚本路径
+    const scriptPath = path.resolve(__dirname, '../../scripts/merge_excel_by_sheet.py');
+    if (!fs.existsSync(scriptPath)) {
+      console.error(`Python脚本不存在: ${scriptPath}`);
+      return res.status(500).json({ message: '服务器配置错误，找不到处理脚本' });
+    }
+    const jsonArgs = {
+      files: tempFilePaths,
+      output: outputFilePath
+    };
+    const options = {
+      mode: 'text' as const,
+      pythonOptions: ['-u'],
+      pythonPath: pythonInterpreter,
+      args: [JSON.stringify(jsonArgs)],
+      stderrParser: (line: string) => {
+        console.error(`[Python] ${line}`);
+        return line;
+      },
+      encoding: 'utf8' as BufferEncoding
+    };
+    PythonShell.run(scriptPath, options).then((results: string[]) => {
+      tempFilePaths.forEach(filePath => {
+        try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+      });
+      console.log('PythonShell results:', results);
+      console.log('检查文件是否存在:', outputFilePath, fs.existsSync(outputFilePath));
+      let success = false;
+      try {
+        let jsonResult = null;
+        for (const line of results) {
+          if (line.trim().startsWith('{') && line.trim().endsWith('}')) {
+            try { jsonResult = JSON.parse(line); break; } catch {}
+          }
+        }
+        if (jsonResult && typeof jsonResult === 'object') {
+          success = jsonResult.success === true;
+        }
+      } catch {}
+      if (success) {
+        if (fs.existsSync(outputFilePath)) {
+          console.log('合并成功，输出文件存在:', outputFilePath);
+          res.status(200).json({ message: '文件合并成功', fileName: outputFileName });
+        } else {
+          console.error('合并成功但输出文件不存在:', outputFilePath);
+          res.status(500).json({ message: '合并Excel文件失败，输出文件不存在' });
+        }
+      } else {
+        console.error('PythonShell未返回success:true，或解析失败。results:', results);
+        res.status(500).json({ message: '合并Excel文件失败' });
+      }
+    }).catch((err: PythonShellError) => {
+      console.error('PythonShell.run抛出异常:', err);
+      res.status(500).json({ message: '服务器错误，无法合并文件' });
+    });
+  } catch (error) {
+    res.status(500).json({ message: '服务器错误，无法合并文件' });
+  }
+};
+
 // 预览Excel文件列
 export const previewExcelColumns = async (req: RequestWithFile, res: Response) => {
   try {
