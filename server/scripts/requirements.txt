@@ -2,4 +2,8 @@ pandas==2.0.0
 openpyxl==3.1.2
 xlrd==2.0.1
 PyMuPDF
-python-docx 
+python-docx
+numpy
+lxml
+et-xmlfile
+typing-extensions
