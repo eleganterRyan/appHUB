@@ -3,7 +3,7 @@ openpyxl==3.1.2
 xlrd==2.0.1
 PyMuPDF
 python-docx
-numpy
+numpy==1.24.3
 lxml
 et-xmlfile
 typing-extensions
