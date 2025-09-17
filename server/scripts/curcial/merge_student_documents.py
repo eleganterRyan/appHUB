@@ -20,6 +20,9 @@ import sys
 from pathlib import Path
 import json
 
+# 设置环境变量确保UTF-8编码
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+
 class StudentDocumentMerger:
     def __init__(self, student_folders, output_dir, base_dir=None, excel_file=None):
         # base_dir为curcial目录
@@ -75,7 +78,11 @@ class StudentDocumentMerger:
                                 if new_text != full_text:
                                     paragraph.clear()
                                     paragraph.add_run(new_text)
-            cover_path = self.output_dir / f"封面_{student_name}.docx"
+            # 确保封面文件名使用正确的UTF-8编码
+            cover_filename = f"封面_{student_name}.docx"
+            cover_path = self.output_dir / cover_filename
+            # 确保路径正确编码
+            cover_path = Path(str(cover_path).encode('utf-8').decode('utf-8'))
             doc.save(cover_path)
             print(f"已为 {student_name} 创建个人封面")
             return cover_path
@@ -115,6 +122,15 @@ class StudentDocumentMerger:
     def extract_file_number(self, filename):
         match = re.match(r'^(\d+)', filename)
         return int(match.group(1)) if match else 999
+    
+    def ensure_utf8_string(self, text):
+        """确保字符串是UTF-8编码的"""
+        if isinstance(text, bytes):
+            try:
+                return text.decode('utf-8')
+            except UnicodeDecodeError:
+                return text.decode('gbk', errors='ignore')
+        return str(text)
 
     def get_student_files(self, student_folder):
         files = []
@@ -146,18 +162,62 @@ class StudentDocumentMerger:
                         current_doc = fitz.open(str(current_pdf_path))
                         current_page_count = merged_doc.page_count
                         merged_doc.insert_pdf(current_doc)
-                        bookmark_title = file_path.stem
+                        # 确保书签标题正确处理中文编码
+                        bookmark_title = self.ensure_utf8_string(file_path.stem)
                         bookmarks.append([1, bookmark_title, current_page_count + 1])
                         current_doc.close()
                         print(f"已添加: {bookmark_title}")
                     except Exception as e:
                         print(f"处理PDF文件失败 {current_pdf_path}: {e}")
                         continue
+            
+            # 设置PDF元数据以支持中文
+            merged_doc.set_metadata({
+                "title": f"{student_name}的论文材料",
+                "author": "系统生成",
+                "subject": "学生论文材料合并",
+                "creator": "StudentDocumentMerger",
+                "producer": "PyMuPDF"
+            })
+            
+            # 添加书签目录，确保中文正确显示
             if bookmarks:
-                for bm in bookmarks:
-                    merged_doc.set_toc([bm for bm in bookmarks])
-            merged_doc.save(output_path)
+                try:
+                    # 使用set_toc方法添加书签，确保UTF-8编码
+                    merged_doc.set_toc(bookmarks)
+                    print(f"成功添加 {len(bookmarks)} 个书签")
+                except Exception as e:
+                    print(f"添加书签失败: {e}")
+                    # 如果set_toc失败，尝试使用底层API添加书签
+                    try:
+                        # 清空现有书签
+                        merged_doc.set_toc([])
+                        # 逐个添加书签
+                        for level, title, page in bookmarks:
+                            # 确保标题是UTF-8字符串
+                            utf8_title = self.ensure_utf8_string(title)
+                            # 使用底层API添加书签
+                            merged_doc.set_toc(merged_doc.get_toc() + [(level, utf8_title, page)])
+                        print(f"使用底层API成功添加 {len(bookmarks)} 个书签")
+                    except Exception as e2:
+                        print(f"底层API添加书签也失败: {e2}")
+                        # 最后尝试：直接设置整个目录
+                        try:
+                            toc = []
+                            for level, title, page in bookmarks:
+                                utf8_title = self.ensure_utf8_string(title)
+                                toc.append((level, utf8_title, page))
+                            merged_doc.set_toc(toc)
+                            print(f"直接设置目录成功，添加 {len(toc)} 个书签")
+                        except Exception as e3:
+                            print(f"所有书签添加方法都失败: {e3}")
+            
+            # 确保输出路径使用正确的编码
+            output_path_str = str(output_path)
+            merged_doc.save(output_path_str)
             merged_doc.close()
+            
+            # 清理临时文件
             for temp_file in temp_files:
                 try:
                     temp_file.unlink()
@@ -198,7 +258,10 @@ class StudentDocumentMerger:
                 if pdf_path:
                     pdf_files.append(pdf_path)
                     temp_files_to_delete.append(pdf_path)
+        # 确保文件名使用UTF-8编码
         output_pdf = self.output_dir / f"{student_name}.pdf"
+        # 确保路径字符串正确编码
+        output_pdf = Path(str(output_pdf).encode('utf-8').decode('utf-8'))
         self.merge_pdfs_with_bookmarks(pdf_files, output_pdf, student_name)
         # 删除封面docx
         if cover_path and cover_path.exists():

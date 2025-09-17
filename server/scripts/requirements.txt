@@ -7,3 +7,6 @@ numpy==1.24.3
 lxml
 et-xmlfile
 typing-extensions
+
+# 下面这个不是 Python 包，是系统依赖，需要用 apt/yum 安装
+# sudo apt install libreoffice
