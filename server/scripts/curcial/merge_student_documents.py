@@ -238,14 +238,14 @@ class StudentDocumentMerger:
         return str(text)
     
     def sanitize_filename(self, filename):
-        """清理文件名，移除或替换不安全的字符"""
+        """清理文件名，移除或替换不安全的字符，保留中文字符"""
         if not filename:
             return "unnamed_file"
         
         # 确保是字符串
         filename = str(filename)
         
-        # 移除或替换不安全的字符
+        # 移除或替换不安全的字符，但保留中文字符
         unsafe_chars = ['\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', 
                        '\x08', '\x0b', '\x0c', '\x0e', '\x0f', '\x10', '\x11', '\x12', 
                        '\x13', '\x14', '\x15', '\x16', '\x17', '\x18', '\x19', '\x1a', 
@@ -464,6 +464,22 @@ class StudentDocumentMerger:
             # 安全地获取学生名称
             student_path = Path(student_folder)
             student_name = student_path.name
+            
+            # 确保学生名称正确编码
+            try:
+                # 尝试修复可能的编码问题
+                if isinstance(student_name, bytes):
+                    student_name = student_name.decode('utf-8')
+                elif isinstance(student_name, str):
+                    # 检查是否包含乱码
+                    if any(ord(c) > 127 and ord(c) < 256 for c in student_name):
+                        # 可能是latin1编码的中文，尝试转换
+                        try:
+                            student_name = student_name.encode('latin1').decode('utf-8')
+                        except:
+                            pass
+            except Exception as e:
+                print(f"处理学生名称编码时出错: {e}")
             
             # 清理学生名称
             safe_student_name = self.sanitize_filename(student_name)

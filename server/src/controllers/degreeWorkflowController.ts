@@ -289,8 +289,44 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
       console.log('开始解压ZIP文件...');
       const zip = new AdmZip(zipPath);
       
-      // 直接使用extractAllTo，但添加错误处理
-      zip.extractAllTo(tempRoot, true);
+      // 手动解压每个文件，确保中文文件名正确处理
+      const entries = zip.getEntries();
+      console.log(`ZIP文件包含 ${entries.length} 个条目`);
+      
+      for (const entry of entries) {
+        if (!entry.isDirectory) {
+          try {
+            // 确保文件名使用正确的编码
+            let fileName = entry.entryName;
+            
+            // 尝试修复编码问题
+            if (fileName.includes('') || /[\x00-\x1F\x7F-\x9F]/.test(fileName)) {
+              // 如果文件名包含乱码，尝试重新编码
+              try {
+                const buffer = Buffer.from(entry.entryName, 'latin1');
+                fileName = buffer.toString('utf8');
+              } catch (e) {
+                console.warn(`无法修复文件名编码: ${entry.entryName}`);
+              }
+            }
+            
+            const filePath = path.join(tempRoot, fileName);
+            const dirPath = path.dirname(filePath);
+            
+            // 确保目录存在
+            if (!fs.existsSync(dirPath)) {
+              fs.mkdirSync(dirPath, { recursive: true });
+            }
+            
+            // 写入文件
+            fs.writeFileSync(filePath, entry.getData());
+            console.log(`解压文件: ${fileName}`);
+          } catch (fileError: any) {
+            console.error(`解压文件失败 ${entry.entryName}:`, fileError);
+          }
+        }
+      }
+      
       console.log('ZIP解压完成');
       
     } catch (error: any) {
@@ -355,9 +391,22 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
       studentFolders = entries
         .filter(d => d.isDirectory() && d.name !== '__MACOSX')
         .map(d => {
-          // 确保路径正确编码
-          const folderPath = path.join(tempRoot, d.name);
-          console.log(`发现学生文件夹: ${d.name} -> ${folderPath}`);
+          // 确保路径正确编码，处理中文名称
+          let folderName = d.name;
+          
+          // 尝试修复中文编码问题
+          if (folderName.includes('') || /[\x00-\x1F\x7F-\x9F]/.test(folderName)) {
+            try {
+              const buffer = Buffer.from(folderName, 'latin1');
+              folderName = buffer.toString('utf8');
+              console.log(`修复文件夹名称编码: ${d.name} -> ${folderName}`);
+            } catch (e) {
+              console.warn(`无法修复文件夹名称编码: ${d.name}`);
+            }
+          }
+          
+          const folderPath = path.join(tempRoot, folderName);
+          console.log(`发现学生文件夹: ${folderName} -> ${folderPath}`);
           
           // 验证文件夹是否可访问
           try {
