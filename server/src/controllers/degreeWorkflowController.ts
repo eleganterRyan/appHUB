@@ -299,16 +299,8 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
             // 确保文件名使用正确的编码
             let fileName = entry.entryName;
             
-            // 尝试修复编码问题
-            if (fileName.includes('') || /[\x00-\x1F\x7F-\x9F]/.test(fileName)) {
-              // 如果文件名包含乱码，尝试重新编码
-              try {
-                const buffer = Buffer.from(entry.entryName, 'latin1');
-                fileName = buffer.toString('utf8');
-              } catch (e) {
-                console.warn(`无法修复文件名编码: ${entry.entryName}`);
-              }
-            }
+            // 使用新的编码修复函数
+            fileName = fixChineseEncoding(entry.entryName);
             
             const filePath = path.join(tempRoot, fileName);
             const dirPath = path.dirname(filePath);
@@ -394,16 +386,8 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
           // 确保路径正确编码，处理中文名称
           let folderName = d.name;
           
-          // 尝试修复中文编码问题
-          if (folderName.includes('') || /[\x00-\x1F\x7F-\x9F]/.test(folderName)) {
-            try {
-              const buffer = Buffer.from(folderName, 'latin1');
-              folderName = buffer.toString('utf8');
-              console.log(`修复文件夹名称编码: ${d.name} -> ${folderName}`);
-            } catch (e) {
-              console.warn(`无法修复文件夹名称编码: ${d.name}`);
-            }
-          }
+          // 使用新的编码修复函数
+          folderName = fixChineseEncoding(d.name);
           
           const folderPath = path.join(tempRoot, folderName);
           console.log(`发现学生文件夹: ${folderName} -> ${folderPath}`);
@@ -504,4 +488,38 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ message: '服务器错误', error: error.message });
   }
-}; 
+};
+
+// 辅助函数：修复中文编码
+function fixChineseEncoding(text: string): string {
+  if (!text || !/[\x80-\xFF]/.test(text)) {
+    return text; // 没有非ASCII字符，直接返回
+  }
+  
+  const encodings = ['utf8', 'gbk', 'gb2312', 'big5', 'latin1'];
+  
+  for (const encoding of encodings) {
+    try {
+      let testStr: string;
+      
+      if (encoding === 'latin1') {
+        const buffer = Buffer.from(text, 'latin1' as BufferEncoding);
+        testStr = buffer.toString('utf8');
+      } else {
+        const buffer = Buffer.from(text, encoding as BufferEncoding);
+        testStr = buffer.toString('utf8');
+      }
+      
+      // 检查是否包含中文字符且没有乱码
+      if (/[\u4e00-\u9fff]/.test(testStr) && !/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(testStr)) {
+        console.log(`成功修复编码 (${encoding}): ${text} -> ${testStr}`);
+        return testStr;
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+  
+  console.warn(`无法修复编码: ${text}`);
+  return text.replace(/[^\w\u4e00-\u9fff\s.-]/g, '_');
+} 
