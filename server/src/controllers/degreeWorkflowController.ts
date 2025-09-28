@@ -286,12 +286,20 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
     fs.writeFileSync(excelPath, excelFile.buffer);
     // 2. 解压zip - 使用简单但有效的方法
     try {
+      // 设置进程编码环境
+      process.env.LANG = 'zh_CN.UTF-8';
+      process.env.LC_ALL = 'zh_CN.UTF-8';
+      process.env.PYTHONIOENCODING = 'utf-8';
+      
       console.log('开始解压ZIP文件...');
       const zip = new AdmZip(zipPath);
       
       // 手动解压每个文件，确保中文文件名正确处理
       const entries = zip.getEntries();
       console.log(`ZIP文件包含 ${entries.length} 个条目`);
+      
+      // 创建文件夹映射，避免重复创建
+      const createdDirs = new Set<string>();
       
       for (const entry of entries) {
         if (!entry.isDirectory) {
@@ -300,14 +308,47 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
             let fileName = entry.entryName;
             
             // 使用新的编码修复函数
+            const originalFileName = fileName;
             fileName = fixChineseEncoding(entry.entryName);
+            
+            // 如果修复失败，尝试其他方法
+            if (fileName === originalFileName && /[\x80-\xFF]/.test(fileName)) {
+              console.log(`尝试其他方法修复: ${fileName}`);
+              
+              // 方法1：尝试从字节数组重新构建
+              const bytes = [];
+              for (let i = 0; i < fileName.length; i++) {
+                const charCode = fileName.charCodeAt(i);
+                if (charCode > 127) {
+                  bytes.push(charCode & 0xFF);
+                } else {
+                  bytes.push(charCode);
+                }
+              }
+              
+              if (bytes.length > 0) {
+                try {
+                  const buffer = Buffer.from(bytes);
+                  const testStr = buffer.toString('utf8');
+                  if (/[\u4e00-\u9fff]/.test(testStr)) {
+                    fileName = testStr;
+                    console.log(`字节重建成功: ${originalFileName} -> ${fileName}`);
+                  }
+                } catch (e) {
+                  // 忽略错误
+                }
+              }
+            }
             
             const filePath = path.join(tempRoot, fileName);
             const dirPath = path.dirname(filePath);
             
-            // 确保目录存在
-            if (!fs.existsSync(dirPath)) {
-              fs.mkdirSync(dirPath, { recursive: true });
+            // 确保目录存在（避免重复创建）
+            if (!createdDirs.has(dirPath)) {
+              if (!fs.existsSync(dirPath)) {
+                fs.mkdirSync(dirPath, { recursive: true });
+                createdDirs.add(dirPath);
+              }
             }
             
             // 写入文件
@@ -496,16 +537,31 @@ function fixChineseEncoding(text: string): string {
     return text; // 没有非ASCII字符，直接返回
   }
   
-  const encodings = ['utf8', 'gbk', 'gb2312', 'big5', 'latin1'];
+  // 首先尝试直接UTF-8解码（适用于Mac创建的ZIP）
+  try {
+    const utf8Buffer = Buffer.from(text, 'utf8');
+    const utf8Str = utf8Buffer.toString('utf8');
+    if (/[\u4e00-\u9fff]/.test(utf8Str) && !/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(utf8Str)) {
+      console.log(`UTF-8直接解码成功: ${text} -> ${utf8Str}`);
+      return utf8Str;
+    }
+  } catch (e) {
+    // 忽略错误，继续尝试其他编码
+  }
+  
+  // 尝试从latin1重新编码（适用于Windows创建的ZIP）
+  const encodings = ['latin1', 'gbk', 'gb2312', 'big5', 'cp936'];
   
   for (const encoding of encodings) {
     try {
       let testStr: string;
       
       if (encoding === 'latin1') {
+        // 先转换为latin1，再转换为UTF-8
         const buffer = Buffer.from(text, 'latin1' as BufferEncoding);
         testStr = buffer.toString('utf8');
       } else {
+        // 尝试其他编码
         const buffer = Buffer.from(text, encoding as BufferEncoding);
         testStr = buffer.toString('utf8');
       }
@@ -513,11 +569,34 @@ function fixChineseEncoding(text: string): string {
       // 检查是否包含中文字符且没有乱码
       if (/[\u4e00-\u9fff]/.test(testStr) && !/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(testStr)) {
         console.log(`成功修复编码 (${encoding}): ${text} -> ${testStr}`);
+        console.log(`修复后的字符码: ${testStr.split('').map(c => c.charCodeAt(0)).join(',')}`);
         return testStr;
       }
     } catch (e) {
       continue;
     }
+  }
+  
+  // 尝试字节级修复（针对特定乱码模式）
+  try {
+    const bytes = [];
+    for (let i = 0; i < text.length; i++) {
+      const charCode = text.charCodeAt(i);
+      if (charCode > 127) {
+        bytes.push(charCode);
+      }
+    }
+    
+    if (bytes.length > 0) {
+      const buffer = Buffer.from(bytes);
+      const testStr = buffer.toString('utf8');
+      if (/[\u4e00-\u9fff]/.test(testStr)) {
+        console.log(`字节级修复成功: ${text} -> ${testStr}`);
+        return testStr;
+      }
+    }
+  } catch (e) {
+    // 忽略错误
   }
   
   console.warn(`无法修复编码: ${text}`);
