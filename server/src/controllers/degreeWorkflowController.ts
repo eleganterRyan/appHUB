@@ -4,6 +4,7 @@ import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { PythonShell } from 'python-shell';
 import AdmZip from 'adm-zip';
+import * as iconv from 'iconv-lite';
 
 const uploadDir = path.join(__dirname, '../../uploads');
 const tempDir = path.join(__dirname, '../../temp');
@@ -531,72 +532,73 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
   }
 };
 
-// 辅助函数：修复中文编码
+// 辅助函数：修复中文编码（专门处理Windows ZIP文件）
 function fixChineseEncoding(text: string): string {
   if (!text || !/[\x80-\xFF]/.test(text)) {
     return text; // 没有非ASCII字符，直接返回
   }
   
-  // 首先尝试直接UTF-8解码（适用于Mac创建的ZIP）
+  console.log(`原始文本: ${text}, 字符码: ${text.split('').map(c => c.charCodeAt(0)).join(',')}`);
+  
+  // 方法1：Windows ZIP文件通常使用GBK编码，需要从latin1重新编码
   try {
-    const utf8Buffer = Buffer.from(text, 'utf8');
-    const utf8Str = utf8Buffer.toString('utf8');
-    if (/[\u4e00-\u9fff]/.test(utf8Str) && !/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(utf8Str)) {
-      console.log(`UTF-8直接解码成功: ${text} -> ${utf8Str}`);
-      return utf8Str;
+    // 将字符串转换为字节数组（latin1编码）
+    const bytes = [];
+    for (let i = 0; i < text.length; i++) {
+      const charCode = text.charCodeAt(i);
+      bytes.push(charCode & 0xFF); // 取低8位
     }
-  } catch (e) {
-    // 忽略错误，继续尝试其他编码
+    
+    console.log(`字节数组: [${bytes.join(',')}]`);
+    
+    // 使用iconv-lite进行GBK解码
+    const gbkBuffer = Buffer.from(bytes);
+    const gbkStr = iconv.decode(gbkBuffer, 'gbk');
+    console.log(`GBK解码: ${text} -> ${gbkStr}`);
+    
+    if (/[\u4e00-\u9fff]/.test(gbkStr)) {
+      console.log(`GBK解码成功: ${text} -> ${gbkStr}`);
+      return gbkStr;
+    }
+  } catch (e: any) {
+    console.log(`GBK解码失败: ${e.message}`);
   }
   
-  // 尝试从latin1重新编码（适用于Windows创建的ZIP）
-  const encodings = ['latin1', 'gbk', 'gb2312', 'big5', 'cp936'];
+  // 方法2：尝试其他Windows编码
+  const windowsEncodings = ['cp936', 'gb2312', 'big5'];
   
-  for (const encoding of encodings) {
+  for (const encoding of windowsEncodings) {
     try {
-      let testStr: string;
-      
-      if (encoding === 'latin1') {
-        // 先转换为latin1，再转换为UTF-8
-        const buffer = Buffer.from(text, 'latin1' as BufferEncoding);
-        testStr = buffer.toString('utf8');
-      } else {
-        // 尝试其他编码
-        const buffer = Buffer.from(text, encoding as BufferEncoding);
-        testStr = buffer.toString('utf8');
+      const bytes = [];
+      for (let i = 0; i < text.length; i++) {
+        const charCode = text.charCodeAt(i);
+        bytes.push(charCode & 0xFF);
       }
       
-      // 检查是否包含中文字符且没有乱码
-      if (/[\u4e00-\u9fff]/.test(testStr) && !/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(testStr)) {
+      const buffer = Buffer.from(bytes);
+      const testStr = iconv.decode(buffer, encoding);
+      console.log(`尝试 ${encoding}: ${text} -> ${testStr}`);
+      
+      if (/[\u4e00-\u9fff]/.test(testStr)) {
         console.log(`成功修复编码 (${encoding}): ${text} -> ${testStr}`);
-        console.log(`修复后的字符码: ${testStr.split('').map(c => c.charCodeAt(0)).join(',')}`);
         return testStr;
       }
-    } catch (e) {
+    } catch (e: any) {
+      console.log(`编码 ${encoding} 失败: ${e.message}`);
       continue;
     }
   }
   
-  // 尝试字节级修复（针对特定乱码模式）
+  // 方法3：如果以上都失败，尝试UTF-8（适用于Mac创建的ZIP）
   try {
-    const bytes = [];
-    for (let i = 0; i < text.length; i++) {
-      const charCode = text.charCodeAt(i);
-      if (charCode > 127) {
-        bytes.push(charCode);
-      }
+    const utf8Buffer = Buffer.from(text, 'utf8');
+    const utf8Str = utf8Buffer.toString('utf8');
+    if (/[\u4e00-\u9fff]/.test(utf8Str)) {
+      console.log(`UTF-8解码成功: ${text} -> ${utf8Str}`);
+      return utf8Str;
     }
-    
-    if (bytes.length > 0) {
-      const buffer = Buffer.from(bytes);
-      const testStr = buffer.toString('utf8');
-      if (/[\u4e00-\u9fff]/.test(testStr)) {
-        console.log(`字节级修复成功: ${text} -> ${testStr}`);
-        return testStr;
-      }
-    }
-  } catch (e) {
-    // 忽略错误
+  } catch (e: any) {
+    console.log(`UTF-8解码失败: ${e.message}`);
   }
   
   console.warn(`无法修复编码: ${text}`);
