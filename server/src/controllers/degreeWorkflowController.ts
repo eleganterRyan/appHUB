@@ -310,7 +310,9 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
             
             // 使用新的编码修复函数
             const originalFileName = fileName;
+            console.log(`修复前文件名: ${originalFileName}`);
             fileName = fixChineseEncoding(entry.entryName);
+            console.log(`修复后文件名: ${fileName}`);
             
             // 如果修复失败，尝试其他方法
             if (fileName === originalFileName && /[\x80-\xFF]/.test(fileName)) {
@@ -429,7 +431,9 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
           let folderName = d.name;
           
           // 使用新的编码修复函数
+          console.log(`修复前文件夹名: ${d.name}`);
           folderName = fixChineseEncoding(d.name);
+          console.log(`修复后文件夹名: ${folderName}`);
           
           const folderPath = path.join(tempRoot, folderName);
           console.log(`发现学生文件夹: ${folderName} -> ${folderPath}`);

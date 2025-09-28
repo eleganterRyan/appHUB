@@ -336,6 +336,7 @@ export default function DegreeWorkflowPage() {
 
   const crucialInstructions = (
     <ol className="list-decimal list-inside text-gray-700 space-y-1">
+      <li>由于windows压缩软件对中文文件名支持不佳，请使用Mac或Linux系统创建zip压缩包</li>
       <li>请为每位重点审议学生单独创建一个文件夹，文件夹名为学生姓名（需与Excel一致），并把所有文件夹打包为zip，但不要把excel文件打包进去</li>
       <li>学生文件夹中所有材料文件名首位必须为数字，并按照如下顺序命名：
         <ol className="list-decimal ml-6">
