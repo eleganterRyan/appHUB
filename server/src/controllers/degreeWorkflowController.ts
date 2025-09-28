@@ -257,6 +257,18 @@ export const comparePartTimeWorkflow = async (req: Request, res: Response) => {
   }
 };
 
+// 文件名清理函数
+const sanitizeFileName = (filename: string): string => {
+  return filename
+    .replace(/[<>:"|?*\\]/g, '_')  // 替换Windows不允许的字符
+    .replace(/[\x00-\x1f]/g, '_')  // 替换控制字符
+    .replace(/\s+/g, '_')          // 替换空格
+    .replace(/[^\x20-\x7E\u4e00-\u9fff]/g, '_') // 只保留ASCII和中文
+    .replace(/_+/g, '_')           // 合并多个下划线
+    .replace(/^_|_$/g, '')         // 移除开头和结尾的下划线
+    || 'unnamed_file';             // 如果文件名为空，使用默认名称
+};
+
 export const processCrucialWorkflow = async (req: Request, res: Response) => {
   try {
     // 检查zip和excel文件
@@ -272,13 +284,103 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
     fs.writeFileSync(zipPath, zipFile.buffer);
     const excelPath = path.join(tempRoot, excelFile.originalname);
     fs.writeFileSync(excelPath, excelFile.buffer);
-    // 2. 解压zip
-    const zip = new AdmZip(zipPath);
-    zip.extractAllTo(tempRoot, true);
+    // 2. 解压zip - 使用简单但有效的方法
+    try {
+      console.log('开始解压ZIP文件...');
+      const zip = new AdmZip(zipPath);
+      
+      // 直接使用extractAllTo，但添加错误处理
+      zip.extractAllTo(tempRoot, true);
+      console.log('ZIP解压完成');
+      
+    } catch (error: any) {
+      console.error('AdmZip解压失败，尝试备用方法:', error);
+      
+      // 备用方法：使用系统unzip命令
+      try {
+        const { execSync } = require('child_process');
+        console.log('尝试使用系统unzip命令解压...');
+        
+        // 使用unzip命令解压，指定UTF-8编码
+        execSync(`unzip -o "${zipPath}" -d "${tempRoot}"`, { 
+          encoding: 'utf8',
+          stdio: 'pipe'
+        });
+        
+        console.log('使用系统unzip命令解压成功');
+      } catch (unzipError: any) {
+        console.error('系统unzip命令也失败:', unzipError);
+        
+        // 最后备用方法：手动解压
+        try {
+          console.log('尝试手动解压...');
+          const zip = new AdmZip(zipPath);
+          const entries = zip.getEntries();
+          
+          for (const entry of entries) {
+            if (!entry.isDirectory) {
+              try {
+                const data = entry.getData();
+                const cleanName = sanitizeFileName(entry.entryName);
+                const targetPath = path.join(tempRoot, cleanName);
+                const targetDir = path.dirname(targetPath);
+                
+                if (!fs.existsSync(targetDir)) {
+                  fs.mkdirSync(targetDir, { recursive: true });
+                }
+                
+                fs.writeFileSync(targetPath, data);
+                console.log(`手动解压成功: ${cleanName}`);
+              } catch (entryError: any) {
+                console.error(`手动解压条目失败: ${entry.entryName}`, entryError);
+              }
+            }
+          }
+          console.log('手动解压完成');
+        } catch (manualError: any) {
+          console.error('所有解压方法都失败:', manualError);
+          return res.status(500).json({ 
+            message: 'ZIP文件解压失败', 
+            error: `所有解压方法都失败: ${error.message}` 
+          });
+        }
+      }
+    }
     // 3. 获取所有一级子目录（学生文件夹）
-    const studentFolders = fs.readdirSync(tempRoot, { withFileTypes: true })
-      .filter(d => d.isDirectory() && d.name !== '__MACOSX')
-      .map(d => path.join(tempRoot, d.name));
+    let studentFolders: string[] = [];
+    try {
+      const entries = fs.readdirSync(tempRoot, { withFileTypes: true, encoding: 'utf8' });
+      console.log('解压后的目录内容:', entries.map(e => e.name));
+      
+      studentFolders = entries
+        .filter(d => d.isDirectory() && d.name !== '__MACOSX')
+        .map(d => {
+          // 确保路径正确编码
+          const folderPath = path.join(tempRoot, d.name);
+          console.log(`发现学生文件夹: ${d.name} -> ${folderPath}`);
+          
+          // 验证文件夹是否可访问
+          try {
+            const stats = fs.statSync(folderPath);
+            if (stats.isDirectory()) {
+              console.log(`文件夹验证成功: ${folderPath}`);
+              return folderPath;
+            } else {
+              console.log(`跳过非目录项: ${folderPath}`);
+              return null;
+            }
+          } catch (error) {
+            console.error(`无法访问文件夹 ${folderPath}:`, error);
+            return null;
+          }
+        })
+        .filter(folder => folder !== null) as string[];
+        
+      console.log(`有效学生文件夹数量: ${studentFolders.length}`);
+    } catch (error: any) {
+      console.error('读取解压目录失败:', error);
+      return res.status(500).json({ message: '读取解压目录失败', error: error.message });
+    }
     if (studentFolders.length === 0) {
       return res.status(400).json({ message: '压缩包内未检测到学生文件夹' });
     }
@@ -295,18 +397,58 @@ export const processCrucialWorkflow = async (req: Request, res: Response) => {
       pythonOptions: ['-u'],
       pythonPath: pythonInterpreter,
       args: [pythonArgs],
+      stderrParser: (line: string) => {
+        console.error(`[Python] ${line}`);
+        return line;
+      },
+      encoding: 'utf8' as BufferEncoding
     };
-    await PythonShell.run(script, options);
+    
+    console.log('开始调用Python脚本处理重点审议材料...');
+    console.log('学生文件夹数量:', studentFolders.length);
+    console.log('输出目录:', outputDir);
+    
+    const results = await PythonShell.run(script, options);
+    console.log('Python脚本执行完成，输出:', results);
+    
+    // 检查输出目录是否存在以及是否有PDF文件
+    if (!fs.existsSync(outputDir)) {
+      console.error('输出目录不存在:', outputDir);
+      return res.status(500).json({ message: 'PDF合并失败，输出目录不存在' });
+    }
+    
+    const pdfFiles = fs.readdirSync(outputDir).filter(file => file.endsWith('.pdf'));
+    console.log('生成的PDF文件数量:', pdfFiles.length);
+    console.log('PDF文件列表:', pdfFiles);
+    
+    if (pdfFiles.length === 0) {
+      console.error('没有生成任何PDF文件');
+      return res.status(500).json({ message: 'PDF合并失败，没有生成PDF文件' });
+    }
+    
     // 5. 打包合并后的PDF为zip
     const archiver = require('archiver');
     const zipFileName = `crucial_result_${uuidv4()}.zip`;
     const zipFilePath = path.join(uploadDir, zipFileName);
     const output = fs.createWriteStream(zipFilePath);
     const archive = archiver('zip', { zlib: { level: 9 } });
+    
+    archive.on('error', (err: any) => {
+      console.error('打包ZIP文件失败:', err);
+      throw err;
+    });
+    
     archive.pipe(output);
     archive.directory(outputDir, false);
     await archive.finalize();
-    res.status(200).json({ zipFileName });
+    
+    console.log('ZIP文件创建成功:', zipFileName);
+    res.status(200).json({ 
+      zipFileName,
+      message: `成功处理 ${pdfFiles.length} 个学生的材料`,
+      pdfCount: pdfFiles.length
+    });
+    
     setTimeout(() => {
       try { fs.rmSync(tempRoot, { recursive: true, force: true }); } catch {}
     }, 3600000);
